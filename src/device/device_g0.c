@@ -42,14 +42,15 @@ void device_sysclock_config(void) {
 	* in the RCC_OscInitTypeDef structure.
 	*/
 #if defined(BOARD_candleLightFD)
-	/* CandleLightFD has an externel 8MHz crystal */
+	/* CandleLightFD has an externel 25MHz crystal */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE|RCC_OSCILLATORTYPE_HSI48;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 	RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
-	RCC_OscInitStruct.PLL.PLLN = 40;
+
+	RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV5;
+	RCC_OscInitStruct.PLL.PLLN = 64;
 	RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV5;
 	RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV8;
 	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV8;
@@ -82,6 +83,17 @@ void device_sysclock_config(void) {
 	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
 	PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
 	HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+
+	__HAL_RCC_CRS_CLK_ENABLE(); // 开启 CRS 时钟
+    RCC_CRSInitTypeDef crsInit = {0};                          // CRS_InitTypeDef → RCC_CRSInitTypeDef
+    crsInit.Prescaler = RCC_CRS_SYNC_DIV1;                    // 加 RCC_ 前缀
+    crsInit.Source = RCC_CRS_SYNC_SOURCE_USB;                  // 加 RCC_ 前缀
+    crsInit.Polarity = RCC_CRS_SYNC_POLARITY_RISING;           // 补上这个缺少的字段
+    crsInit.ReloadValue = __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000, 1000);
+    crsInit.ErrorLimitValue = 34;
+    crsInit.HSI48CalibrationValue = 32;
+    HAL_RCCEx_CRSConfig(&crsInit);
+
 
 	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
