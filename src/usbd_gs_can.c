@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "gs_usb.h"
 #include "hal_include.h"
 #include "led.h"
+#include "stm32g0b1xx.h"
 #include "timer.h"
 #include "usbd_core.h"
 #include "usbd_ctlreq.h"
@@ -44,9 +45,13 @@ THE SOFTWARE.
 #include "usbd_gs_can.h"
 #include "usbd_ioreq.h"
 #include "util.h"
+#include "board.h"
 
 static volatile bool is_usb_suspend_cb = false;
+struct gs_device_state device_state;
+
 extern uint16_t current_bus_load_percent;
+extern const struct BoardConfig config;
 
 /* Configuration Descriptor */
 static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
@@ -390,6 +395,30 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 			src = &current_bus_load_percent;
 			len = sizeof(current_bus_load_percent);
 			break;
+
+		case GS_USB_BREQ_GET_STATE:{
+			uint32_t ecr = config.channels[0].interface->ECR;
+			uint32_t psr = config.channels[0].interface->PSR;
+
+			device_state.txerr = ecr & 0xFF;
+			device_state.rxerr = (ecr >> 8) & 0x7F;
+			if(ecr & (1 << 15)){
+				device_state.rxerr += 128;
+			}
+
+			if(psr & FDCAN_PSR_BO_Msk){
+				device_state.state = GS_CAN_STATE_BUS_OFF;
+			} else if(psr & FDCAN_PSR_EP_Msk){
+				device_state.state = GS_CAN_STATE_ERROR_PASSIVE;
+			} else if(psr & FDCAN_PSR_EW_Msk){
+				device_state.state = GS_CAN_STATE_ERROR_WARNING;
+			} else {
+				device_state.state = GS_CAN_STATE_ERROR_ACTIVE;
+			}
+
+		}
+			
+
 		default:
 			goto out_fail;
 	}
@@ -424,6 +453,11 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 		case GS_USB_BREQ_GET_BUS_LOAD:
 			USBD_CtlSendData(pdev, (uint8_t *)&current_bus_load_percent, sizeof(current_bus_load_percent));
 			break;
+
+		case GS_USB_BREQ_GET_STATE:
+			USBD_CtlSendData(pdev, (uint8_t *)&device_state, sizeof(device_state));
+			break;
+
 		default:
 			goto out_fail;
 	}
