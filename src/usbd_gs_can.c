@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 */
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -45,6 +46,7 @@ THE SOFTWARE.
 #include "util.h"
 
 static volatile bool is_usb_suspend_cb = false;
+extern uint16_t current_bus_load_percent;
 
 /* Configuration Descriptor */
 static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
@@ -383,6 +385,11 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 			len = sizeof(term_state);
 			break;
 		}
+
+		case GS_USB_BREQ_GET_BUS_LOAD:
+			src = &current_bus_load_percent;
+			len = sizeof(current_bus_load_percent);
+			break;
 		default:
 			goto out_fail;
 	}
@@ -412,6 +419,10 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 		case GS_USB_BREQ_BT_CONST_EXT:
 		case GS_USB_BREQ_GET_TERMINATION:
 			USBD_CtlSendData(pdev, (uint8_t *)src, len);
+			break;
+		
+		case GS_USB_BREQ_GET_BUS_LOAD:
+			USBD_CtlSendData(pdev, (uint8_t *)&current_bus_load_percent, sizeof(current_bus_load_percent));
 			break;
 		default:
 			goto out_fail;

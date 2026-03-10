@@ -25,7 +25,17 @@ THE SOFTWARE.
 */
 
 #include <stdint.h>
+#include "board.h"
+#include "can.h"
+#include "config.h"
 #include "hal_include.h"
+#include "stm32g0b1xx.h"
+
+extern const struct BoardConfig config;
+
+static uint32_t bus_busy_samples = 0;
+static uint32_t bus_total_samples = 0;
+volatile uint16_t current_bus_load_percent = 0;
 
 void NMI_Handler(void)
 {
@@ -43,6 +53,22 @@ void SysTick_Handler(void)
 {
 	HAL_IncTick();
 	HAL_SYSTICK_IRQHandler();
+
+	for(int i=0; i<NUM_CAN_CHANNEL; i++){
+		const struct BoardChannelConfig *channel = &config.channels[i];
+
+		uint32_t act = (channel->interface->PSR & FDCAN_PSR_ACT_Msk) >> FDCAN_PSR_ACT_Pos;
+		if(act >= 2) {
+			bus_busy_samples++;
+		}
+		bus_total_samples++;
+
+		if(bus_total_samples >= 500){
+			current_bus_load_percent = (uint32_t)(bus_busy_samples * 1000) / bus_total_samples;
+			bus_busy_samples = 0;
+			bus_total_samples = 0;
+		}
+	}
 }
 
 extern PCD_HandleTypeDef hpcd_USB_FS;
