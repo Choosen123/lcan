@@ -416,6 +416,10 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 				device_state.state = GS_CAN_STATE_ERROR_ACTIVE;
 			}
 
+			src = &device_state;
+			len = sizeof(device_state);
+
+			break;
 		}
 			
 
