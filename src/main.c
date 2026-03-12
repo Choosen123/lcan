@@ -45,6 +45,9 @@ THE SOFTWARE.
 #include "usbd_desc.h"
 #include "usbd_gs_can.h"
 #include "util.h"
+#include "cdc.h"
+#include "uart.h"
+#include "main.h"
 
 void HAL_MspInit(void);
 static void SystemClock_Config(void);
@@ -52,10 +55,15 @@ static void SystemClock_Config(void);
 static USBD_GS_CAN_HandleTypeDef hGS_CAN;
 static USBD_HandleTypeDef hUSB = {0};
 
+USBD_CDC_HandleTypeDef hCDC;
+
 int main(void)
 {
 	HAL_Init();
 	SystemClock_Config();
+
+	USART1_Init();
+	CDC_Init(&hCDC, &huart1);
 
 	config.setup(&hGS_CAN);
 	timer_init();
@@ -139,4 +147,15 @@ void HAL_MspInit(void)
 void SystemClock_Config(void)
 {
 	device_sysclock_config();
+}
+
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
 }

@@ -59,3 +59,13 @@ enum gs_can_termination_state set_term(can_data_t *channel, enum gs_can_terminat
 }
 
 #endif
+
+void gpio_init(void)
+{
+	#ifdef BOARD_candleLightFD
+		/* GPIO Ports Clock Enable */
+		__HAL_RCC_GPIOA_CLK_ENABLE();
+		__HAL_RCC_GPIOB_CLK_ENABLE();
+
+	#endif	
+}

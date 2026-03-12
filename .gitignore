@@ -15,3 +15,5 @@
 .project
 .settings
 compile_commands.json
+*.rar
+

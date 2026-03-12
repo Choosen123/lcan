@@ -158,6 +158,27 @@ set(STM32G0_SOURCES
     include/stm32g0xx/stm32g0xx_ll_usb.h
     src/stm32g0xx/stm32g0xx_ll_usb.c
 
+    include/stm32g0xx/stm32g0xx_hal_dma_ex.h
+    src/stm32g0xx/stm32g0xx_hal_dma_ex.c
+
+    include/stm32g0xx/stm32g0xx_hal_dma.h
+    src/stm32g0xx/stm32g0xx_hal_dma.c
+
+    include/stm32g0xx/stm32g0xx_hal_uart_ex.h
+    src/stm32g0xx/stm32g0xx_hal_uart_ex.c
+
+    include/stm32g0xx/stm32g0xx_hal_uart.h
+    src/stm32g0xx/stm32g0xx_hal_uart.c
+
+    include/stm32g0xx/stm32g0xx_hal_uart.h
+    src/stm32g0xx/stm32g0xx_hal_uart.c
+
+    include/stm32g0xx/stm32g0xx_ll_dmamux.h
+    # src/stm32g0xx/stm32g0xx_ll_dmamux.c
+
+    include/stm32g0xx/stm32g0xx_ll_dma.h
+    # src/stm32g0xx/stm32g0xx_ll_dma.c
+
     src/cmsis/system_stm32g0xx.c
     include/stm32g0xx/Legacy/stm32_hal_legacy.h
 
