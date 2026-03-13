@@ -23,7 +23,7 @@ add_compile_options(
 	-mthumb
 	-std=gnu11
 )
-
+add_definitions(-DHSE_VALUE=25000000U)
 #need these later, per-platform
 set(CPUFLAGS_F0 -mcpu=cortex-m0)
 set(CPUFLAGS_F4 -mcpu=cortex-m4)

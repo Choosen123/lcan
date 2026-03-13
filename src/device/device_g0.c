@@ -80,8 +80,9 @@ void device_sysclock_config(void) {
 	HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2);
 
 	RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB | RCC_PERIPHCLK_USART1;
 	PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+	PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
 	HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
 
 	__HAL_RCC_CRS_CLK_ENABLE(); // 开启 CRS 时钟
