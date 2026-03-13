@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "config.h"
 #include "hal_include.h"
 #include "stm32g0b1xx.h"
+#include "dfu.h"
 
 extern const struct BoardConfig config;
 
@@ -45,6 +46,7 @@ void NMI_Handler(void)
 
 void HardFault_Handler(void)
 {
+	dfu_run_bootloader();
 	__asm__ ("BKPT");
 	while (1);
 }

@@ -53,7 +53,7 @@ void HAL_MspInit(void);
 static void SystemClock_Config(void);
 
 static USBD_GS_CAN_HandleTypeDef hGS_CAN;
-static USBD_HandleTypeDef hUSB = {0};
+USBD_HandleTypeDef hUSB = {0};
 
 USBD_CDC_HandleTypeDef hCDC;
 
@@ -62,6 +62,7 @@ int main(void)
 	HAL_Init();
 	SystemClock_Config();
 
+	gpio_init();
 	USART1_Init();
 	CDC_Init(&hCDC, &huart1);
 
@@ -154,6 +155,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
+  dfu_run_bootloader();
   while (1)
   {
   }

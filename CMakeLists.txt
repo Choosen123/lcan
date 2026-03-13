@@ -10,6 +10,7 @@ add_compile_options(
 	-Wall
 	-Werror
 	-Wextra
+	-Wparentheses
 	-Wstrict-prototypes
 	-fdata-sections
 	-ffat-lto-objects
@@ -115,7 +116,7 @@ function(dfu_flash target)
 			BYPRODUCTS ${target}.dfu
 			COMMAND ${CMAKE_OBJCOPY} -O binary ${target} ${target}.dfu
 			# COMMAND ${DFU_SUFFIX_EXECUTABLE} --add ${target}.dfu --vid 1d50 --pid 606f 1>/dev/null
-			COMMAND ${DFU_SUFFIX_EXECUTABLE} --add ${target}.dfu --vid 1d50 --pid 606f 
+			COMMAND ${DFU_SUFFIX_EXECUTABLE} --add ${target}.dfu --vid 1d50 --pid 606f
 			COMMENT "create and sign dfu bin file: ${TGTNAME}_fw"
 		)
 
@@ -142,9 +143,9 @@ endfunction()
 # at configure time.
 
 function(populate_ldscript)
-    set(prefix LDV)
-    set(options)
-    set(oneValueArgs
+	set(prefix LDV)
+	set(options)
+	set(oneValueArgs
 		CPU_FAMILY
 		FLASH_START
 		FLASH_SIZE

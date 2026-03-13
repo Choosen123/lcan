@@ -570,8 +570,8 @@ static uint8_t USBD_GS_CAN_Vendor_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 		) {
 		return USBD_GS_CAN_DFU_Request(pdev, req);
 	} else if(
-		(req_type = 0x01) && (req_rcpt == 0x01)
-		&& (req->wIndex = CDC_CTRL_INTERFACE_NUM)
+		(req_type == 0x01) && (req_rcpt == 0x01)
+		&& (req->wIndex == CDC_CTRL_INTERFACE_NUM)
 	){
 		return CDC_Setup_Request(pdev, req);
 
@@ -620,6 +620,8 @@ static uint8_t USBD_GS_CAN_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 	can_data_t *channel = NULL;
 	USBD_SetupReqTypedef *req = &hcan->last_setup_request;
 	uint8_t err;
+
+	// CDC请求处理
 
 	/*
 	 * The control messages GS_USB_BREQ_HOST_FORMAT and

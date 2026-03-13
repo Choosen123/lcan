@@ -15,6 +15,9 @@
 #define CDC_CMD_MAX_PCAKET_SIZE 8
 #define CDC_DATA_MAX_PACKET_SIZE 64
 
+#define CDC_RX_BUFFER_SIZE 2048
+#define CDC_TX_BUFFER_SIZE 2048
+
 /*---------------------------------------------------------------------*/
 /*  CDC definitions                                                    */
 /*---------------------------------------------------------------------*/
@@ -28,8 +31,8 @@
 #define CDC_SET_CONTROL_LINE_STATE                  0x22U
 #define CDC_SEND_BREAK                              0x23U
 
-extern __ALIGN_BEGIN uint8_t cdc_tx_buffer[2048] __ALIGN_END;
-extern __ALIGN_BEGIN uint8_t cdc_rx_buffer[2048] __ALIGN_END;
+extern __ALIGN_BEGIN uint8_t cdc_tx_buffer[CDC_TX_BUFFER_SIZE] __ALIGN_END;
+extern __ALIGN_BEGIN uint8_t cdc_rx_buffer[CDC_RX_BUFFER_SIZE] __ALIGN_END;
 
 typedef struct
 {
@@ -69,3 +72,9 @@ typedef struct
 void CDC_Init(USBD_CDC_HandleTypeDef *hcdc, UART_HandleTypeDef *huart);
 
 uint8_t CDC_Setup_Request(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req);
+void CDC_SetLineCoding(USBD_CDC_HandleTypeDef* hcdc, const USBD_CDC_LineCodingTypeDef* coding);
+uint8_t CDC_EP0_RxReady(USBD_HandleTypeDef *pdev, USBD_CDC_HandleTypeDef *hcdc, uint8_t req);
+uint8_t CDC_DataIn_Callback(USBD_HandleTypeDef *pdev, uint8_t epnum);
+uint8_t CDC_DataOut_Callback(USBD_HandleTypeDef *pdev, uint8_t epnum);
+void CDC_CheckAndTransmitUSB(USBD_HandleTypeDef *pdev);
+void CDC_CheckAndTransmitUART(USBD_CDC_HandleTypeDef *hcdc);

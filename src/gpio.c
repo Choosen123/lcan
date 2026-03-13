@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include "config.h"
 #include "gpio.h"
 #include "hal_include.h"
+#include "stm32g0xx_hal_gpio.h"
 
 #ifdef TERM_Pin
 static int term_state = 0;
@@ -63,9 +64,19 @@ enum gs_can_termination_state set_term(can_data_t *channel, enum gs_can_terminat
 void gpio_init(void)
 {
 	#ifdef BOARD_candleLightFD
-		/* GPIO Ports Clock Enable */
-		__HAL_RCC_GPIOA_CLK_ENABLE();
-		__HAL_RCC_GPIOB_CLK_ENABLE();
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-	#endif	
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3|GPIO_PIN_4, GPIO_PIN_RESET);
+
+	/*Configure GPIO pins : PA3 PA4 */
+	GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	#endif
 }
