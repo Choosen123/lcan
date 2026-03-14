@@ -2,6 +2,6 @@
 
 #include "stm32g0xx_hal.h"
 
-extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart3;
 
-void USART1_Init(void);
+void USART3_Init(void);

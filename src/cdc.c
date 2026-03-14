@@ -152,6 +152,7 @@ uint8_t CDC_DataIn_Callback(USBD_HandleTypeDef *pdev, uint8_t epnum){
 
 		CDC_CheckAndTransmitUART(hcdc); // 检查是否有更多数据需要发送
 	}
+	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
 	return USBD_OK;
 }
 
@@ -178,6 +179,8 @@ uint8_t CDC_DataOut_Callback(USBD_HandleTypeDef *pdev, uint8_t epnum){
 			}
 
 			CDC_CheckAndTransmitUART(hcdc); // 检查是否有数据需要发送到UART
+
+			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
 
 			// 准备下一次接收
 			USBD_LL_PrepareReceive(pdev, CDC_ENDPOINT_DATA_OUT, hcdc->RxBuffer, CDC_DATA_MAX_PACKET_SIZE);
@@ -234,8 +237,8 @@ void CDC_CheckAndTransmitUART(USBD_CDC_HandleTypeDef *hcdc){
 }
 
 
-// USART1中断处理函数，处理空闲中断以触发数据发送
-void USART1_IRQHandler(void){
+// USART3中断处理函数，处理空闲中断以触发数据发送
+void USART3_4_5_6_LPUART1_IRQHandler(void){
 	// 串口空闲中断触发，说明总线上没有数据了，可以检查是否有数据需要发送给主机
 	if(__HAL_UART_GET_FLAG(g_cdc->huart, UART_FLAG_IDLE)){
 		__HAL_UART_CLEAR_IDLEFLAG(g_cdc->huart);

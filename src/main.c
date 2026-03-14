@@ -65,8 +65,8 @@ int main(void)
 
 	gpio_init();
 	DMA_Init();
-	USART1_Init();
-	CDC_Init(&hCDC, &huart1);
+	USART3_Init();
+	CDC_Init(&hCDC, &huart3);
 
 	config.setup(&hGS_CAN);
 	timer_init();
@@ -109,7 +109,7 @@ int main(void)
 	USBD_GS_CAN_Init(&hGS_CAN, &hUSB);
 	USBD_Start(&hUSB);
 
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart1, cdc_rx_buffer, CDC_RX_BUFFER_SIZE);
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_rx_buffer, CDC_RX_BUFFER_SIZE);
 
 	while (1) {
 		for (unsigned int i = 0; i < ARRAY_SIZE(hGS_CAN.channels); i++) {

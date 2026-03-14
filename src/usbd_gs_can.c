@@ -584,6 +584,11 @@ static uint8_t USBD_GS_CAN_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef 
 {
 	static uint8_t ifalt = 0;
 
+	// cdc
+	if(LOBYTE(req->wIndex) == CDC_CTRL_INTERFACE_NUM){
+		return CDC_Setup_Request(pdev, req);
+	}
+
 	switch (req->bmRequest & USB_REQ_TYPE_MASK) {
 
 		case USB_REQ_TYPE_CLASS:
@@ -622,6 +627,12 @@ static uint8_t USBD_GS_CAN_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 	uint8_t err;
 
 	// CDC请求处理
+	if((req->bmRequest & USB_REQ_TYPE_MASK) == USB_REQ_TYPE_CLASS &&
+		(req->bmRequest & 0x1F) == 0x01 && // recipient: interface
+		req->wIndex == CDC_CTRL_INTERFACE_NUM
+	){
+		return CDC_EP0_RxReady(pdev, &hCDC, req->bRequest);
+	}
 
 	/*
 	 * The control messages GS_USB_BREQ_HOST_FORMAT and
@@ -720,7 +731,12 @@ out_fail:
 
 static uint8_t USBD_GS_CAN_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
-	(void) epnum;
+	// (void) epnum;
+
+	// 如果是CDC数据IN端点，交给CDC处理
+	if(epnum == (CDC_ENDPOINT_DATA_IN & 0x7F)){
+		return CDC_DataIn_Callback(pdev, epnum);
+	}
 
 	bool was_irq_enabled = disable_irq();
 	list_add_tail(&hcan->to_host_buf->list, &hcan->list_frame_pool);
@@ -735,6 +751,9 @@ static uint8_t USBD_GS_CAN_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
 	can_data_t *channel;
 
+	if(epnum == (CDC_ENDPOINT_DATA_OUT & 0x7F)){
+		return CDC_DataOut_Callback(pdev, epnum);
+	}
 	uint32_t rxlen = USBD_LL_GetRxDataSize(pdev, epnum);
 	if (rxlen < (struct_size(&hcan->from_host_buf->frame, classic_can, 1))) {
 		// Invalid frame length, just ignore it and receive into the same buffer

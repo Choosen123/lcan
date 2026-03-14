@@ -33,8 +33,8 @@ THE SOFTWARE.
 #include "dfu.h"
 
 extern const struct BoardConfig config;
-extern DMA_HandleTypeDef hdma_usart1_rx;
-extern DMA_HandleTypeDef hdma_usart1_tx;
+extern DMA_HandleTypeDef hdma_usart3_rx;
+extern DMA_HandleTypeDef hdma_usart3_tx;
 
 static uint32_t bus_busy_samples = 0;
 static uint32_t bus_total_samples = 0;
@@ -238,7 +238,7 @@ const pFunc InterruptVectorTable[84] = {
 };
 
 #elif defined(STM32G0)
-extern void USART1_IRQHandler(void);
+extern void USART3_4_5_6_LPUART1_IRQHandler(void);
 void DMA1_Channel1_IRQHandler(void);
 void DMA1_Channel2_3_IRQHandler(void);
 
@@ -288,9 +288,9 @@ const pFunc InterruptVectorTable[48] = {
 	0,                    /* I2C2, I2C3                   */
 	0,                    /* SPI1                         */
 	0,                    /* SPI2, SPI3                   */
-	USART1_IRQHandler,    /* USART1                       */
+	0,    				  /* USART1                       */
 	0,                    /* USART2 & LPUART2             */
-	0,                    /* USART3, USART4, USART5, USART6, LPUART1   */
+	USART3_4_5_6_LPUART1_IRQHandler,                    /* USART3, USART4, USART5, USART6, LPUART1   */
 	0,                    /* CEC                          */
 	// don't need to define any interrupts after this one
 };
@@ -303,7 +303,7 @@ void DMA1_Channel1_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
 
   /* USER CODE END DMA1_Channel1_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart1_rx);
+  HAL_DMA_IRQHandler(&hdma_usart3_rx);
   /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
 
   /* USER CODE END DMA1_Channel1_IRQn 1 */
@@ -317,7 +317,7 @@ void DMA1_Channel2_3_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel2_3_IRQn 0 */
 
   /* USER CODE END DMA1_Channel2_3_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart1_tx);
+  HAL_DMA_IRQHandler(&hdma_usart3_tx);
   /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
 
   /* USER CODE END DMA1_Channel2_3_IRQn 1 */
