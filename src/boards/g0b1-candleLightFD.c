@@ -115,6 +115,9 @@ static void candlelightfd_setup(USBD_GS_CAN_HandleTypeDef *hcan)
 	GPIO_InitStruct.Alternate = GPIO_AF3_FDCAN1;
 	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
+	HAL_NVIC_SetPriority(TIM16_FDCAN_IT0_IRQn, 2, 0);
+	HAL_NVIC_EnableIRQ(TIM16_FDCAN_IT0_IRQn);
+
 #if NUM_CAN_CHANNEL == 2
 	/* FDCAN2_RX, FDCAN2_TX */
 	GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;

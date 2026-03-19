@@ -88,6 +88,10 @@ void can_init(can_data_t *channel, FDCAN_GlobalTypeDef *instance)
 	channel->channel.Init.StdFiltersNbr = 0;
 	channel->channel.Init.ExtFiltersNbr = 0;
 	channel->channel.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
+
+	// 使能中断
+	channel->channel.Instance->ILE |= FDCAN_ILE_EINT0_Msk;
+	channel->channel.Instance->IE |= FDCAN_IE_RF0NE_Msk; // Rx FIFO 0 new message interrupt
 }
 
 void can_set_bittiming(can_data_t *channel, const struct gs_device_bittiming *timing)
@@ -160,6 +164,8 @@ void can_enable(can_data_t *channel, uint32_t mode)
 								 FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
 
 	config.phy_power_set(channel, true);
+
+	HAL_FDCAN_ActivateNotification(&channel->channel, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
 
 	// Start CAN using HAL
 	HAL_FDCAN_Start(&channel->channel);

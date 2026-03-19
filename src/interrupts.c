@@ -241,6 +241,8 @@ const pFunc InterruptVectorTable[84] = {
 extern void USART3_4_5_6_LPUART1_IRQHandler(void);
 void DMA1_Channel1_IRQHandler(void);
 void DMA1_Channel2_3_IRQHandler(void);
+void TIM16_FDCAN_IT0_IRQnHandler(void);
+void can_receive_interrupt_handler(void);
 
 __attribute__((used, section(".vectors")))
 const pFunc InterruptVectorTable[48] = {
@@ -282,7 +284,7 @@ const pFunc InterruptVectorTable[48] = {
 	0,                    /* TIM7 and LPTIM2              */
 	0,                    /* TIM14                        */
 	0,                    /* TIM15                        */
-	0,                    /* TIM16 & FDCAN1_IT0 & FDCAN2_IT0 */
+	TIM16_FDCAN_IT0_IRQnHandler,                    /* TIM16 & FDCAN1_IT0 & FDCAN2_IT0 */
 	0,                    /* TIM17 & FDCAN1_IT1 & FDCAN2_IT1 */
 	0,                    /* I2C1                         */
 	0,                    /* I2C2, I2C3                   */
@@ -322,4 +324,5 @@ void DMA1_Channel2_3_IRQHandler(void)
 
   /* USER CODE END DMA1_Channel2_3_IRQn 1 */
 }
+
 #endif

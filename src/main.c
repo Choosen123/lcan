@@ -128,8 +128,8 @@ int main(void)
 		for (unsigned int i = 0; i < ARRAY_SIZE(hGS_CAN.channels); i++) {
 			can_data_t *channel = &hGS_CAN.channels[i];
 
-			CAN_ReceiveFrame(&hGS_CAN, channel);
-			CAN_HandleError(&hGS_CAN, channel);
+			// CAN_ReceiveFrame(&hGS_CAN, channel);
+			// CAN_HandleError(&hGS_CAN, channel);
 
 			led_update(&channel->leds);
 		}
@@ -137,6 +137,22 @@ int main(void)
 		if (USBD_GS_CAN_DfuDetachRequested(&hUSB)) {
 			dfu_run_bootloader();
 		}
+	}
+}
+
+void TIM16_FDCAN_IT0_IRQnHandler(void)
+{
+	HAL_FDCAN_IRQHandler(&hGS_CAN.channels[0].channel);
+}
+
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+{
+	(void)hfdcan;
+	if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
+		while(HAL_FDCAN_GetRxFifoFillLevel(&hGS_CAN.channels[0].channel, FDCAN_RX_FIFO0) > 0) {
+			CAN_ReceiveFrame(&hGS_CAN, &hGS_CAN.channels[0]);
+		}
+
 	}
 }
 
