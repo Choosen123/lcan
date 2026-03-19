@@ -89,6 +89,7 @@ void CAN_ReceiveFrame(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel)
 {
 	struct gs_host_frame_object *frame_object;
 
+	// 检查fifo里有没有消息
 	if (!can_is_rx_pending(channel)) {
 		return;
 	}
@@ -97,13 +98,25 @@ void CAN_ReceiveFrame(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel)
 	frame_object = list_first_entry_or_null(&hcan->list_frame_pool,
 											struct gs_host_frame_object,
 											list);
+	// 如果没有空闲的frame buffer，扔掉最老的一条消息
 	if (!frame_object) {
-		restore_irq(was_irq_enabled);
-		return;
+		frame_object = list_first_entry_or_null(&hcan->list_to_host,
+													 struct gs_host_frame_object,
+													 list);
+
+		if(frame_object){
+			list_del(&frame_object->list);
+		}
+
+	}else{
+		list_del(&frame_object->list);
 	}
 
-	list_del(&frame_object->list);
 	restore_irq(was_irq_enabled);
+
+	if(!frame_object){
+		return;
+	}
 
 	struct gs_host_frame *frame = &frame_object->frame;
 
