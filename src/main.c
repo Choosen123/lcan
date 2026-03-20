@@ -52,6 +52,11 @@ static void SystemClock_Config(void);
 static USBD_GS_CAN_HandleTypeDef hGS_CAN;
 static USBD_HandleTypeDef hUSB = {0};
 
+USBD_HandleTypeDef* get_usb_handle(void)
+{
+	return &hUSB;
+}
+
 int main(void)
 {
 	HAL_Init();
@@ -102,7 +107,10 @@ int main(void)
 		for (unsigned int i = 0; i < ARRAY_SIZE(hGS_CAN.channels); i++) {
 			can_data_t *channel = &hGS_CAN.channels[i];
 
-			CAN_SendFrame(&hGS_CAN, channel);
+			while(HAL_FDCAN_GetTxFifoFreeLevel(&channel->channel) > 0 &&
+				  !list_empty(&channel->list_from_host)) {
+				CAN_SendFrame(&hGS_CAN, channel);
+			}
 		}
 
 		USBD_GS_CAN_ReceiveFromHost(&hUSB);

@@ -33,6 +33,13 @@ THE SOFTWARE.
 const struct gs_device_bt_const_extended CAN_btconst_ext;
 #endif
 
+USBD_HandleTypeDef* get_usb_handle(void);
+inline void CAN_RestartReceiveFromGost(USBD_HandleTypeDef *pdev, USBD_GS_CAN_HandleTypeDef *hcan){
+	if(hcan->from_host_buf == NULL){
+		USBD_GS_CAN_ReceiveFromHost(pdev);
+	}
+}
+
 int can_check_bittiming(const struct can_bittiming_const *btc,
 						const struct gs_device_bittiming *timing)
 {
@@ -109,6 +116,7 @@ void CAN_ReceiveFrame(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel)
 
 	if (!can_receive(channel, frame)) {
 		list_add_tail_locked(&frame_object->list, &hcan->list_frame_pool);
+		CAN_RestartReceiveFromGost(get_usb_handle(), hcan);
 		return;
 	}
 
@@ -154,5 +162,6 @@ void CAN_HandleError(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel)
 		list_add_tail_locked(&frame_object->list, &hcan->list_to_host);
 	} else {
 		list_add_tail_locked(&frame_object->list, &hcan->list_frame_pool);
+		CAN_RestartReceiveFromGost(get_usb_handle(), hcan);
 	}
 }

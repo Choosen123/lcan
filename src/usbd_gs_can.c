@@ -53,6 +53,8 @@ struct gs_device_state device_state;
 extern uint16_t current_bus_load_percent;
 extern const struct BoardConfig config;
 
+USBD_HandleTypeDef* get_usb_handle(void);
+
 /* Configuration Descriptor */
 static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
 {
@@ -421,7 +423,7 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 
 			break;
 		}
-			
+
 
 		default:
 			goto out_fail;
@@ -453,7 +455,7 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 		case GS_USB_BREQ_GET_TERMINATION:
 			USBD_CtlSendData(pdev, (uint8_t *)src, len);
 			break;
-		
+
 		case GS_USB_BREQ_GET_BUS_LOAD:
 			USBD_CtlSendData(pdev, (uint8_t *)&current_bus_load_percent, sizeof(current_bus_load_percent));
 			break;
@@ -675,6 +677,18 @@ static uint8_t USBD_GS_CAN_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 		// We got a buffer! Get ready to receive from the USB host into it.
 		USBD_GS_CAN_PrepareReceive(pdev);
 	} else {
+		// // 丢弃最老的一帧以腾出空间，否则GS_CAN会因为ACK队列满了而挂掉。
+		// struct gs_host_frame_object *old_frame = list_first_entry_or_null(&channel->list_from_host,
+		// 													 struct gs_host_frame_object,
+		// 													 list);
+		// if(old_frame){
+		// 	list_del(&old_frame->list);
+		// 	hcan->from_host_buf = old_frame;
+
+		// 	restore_irq(was_irq_enabled);
+		// 	USBD_GS_CAN_PrepareReceive(pdev);
+		// }
+
 		restore_irq(was_irq_enabled);
 
 		// gs_can has no way to drop packets. If we just drop this one, gs_can
