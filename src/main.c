@@ -58,6 +58,8 @@ USBD_HandleTypeDef hUSB = {0};
 
 USBD_CDC_HandleTypeDef hCDC;
 
+extern volatile bool cdc_uart_reconfig_requested;
+
 int main(void)
 {
 	HAL_Init();
@@ -136,6 +138,12 @@ int main(void)
 
 		if (USBD_GS_CAN_DfuDetachRequested(&hUSB)) {
 			dfu_run_bootloader();
+		}
+
+		if(cdc_uart_reconfig_requested){
+			cdc_uart_reconfig_requested = false;
+			HAL_UART_Init(&huart3);
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_tx_buffer, CDC_RX_BUFFER_SIZE);
 		}
 	}
 }

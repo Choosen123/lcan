@@ -17,6 +17,9 @@ volatile uint32_t cdc_rx_write_ptr = 0;		// USB接收数据写入指针，主机
 volatile uint32_t cdc_rx_read_ptr = 0;		// UART DMA接收数据读取指针，设备读取cdc_rx_buffer主机数据
 volatile uint32_t cdc_tx_read_ptr = 0;		// USB发送数据读取指针，写入靠dma自动完成
 
+uint8_t cdc_pending_cmd = 0xFF;
+volatile bool cdc_uart_reconfig_requested = false;
+
 static uint8_t line_coding_data[7];
 
 static USBD_CDC_HandleTypeDef *g_cdc;
@@ -46,6 +49,7 @@ uint8_t CDC_Setup_Request(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req){
 
     switch(req->bRequest){
 	   	case CDC_SET_LINE_CODING:
+			cdc_pending_cmd = CDC_SET_LINE_CODING;
 	   		USBD_CtlPrepareRx(pdev, line_coding_data, 7);
 	  		break;
 
@@ -120,7 +124,8 @@ void CDC_SetLineCoding(USBD_CDC_HandleTypeDef* hcdc, const USBD_CDC_LineCodingTy
 			break;
 	}
 
-	HAL_UART_Init(hcdc->huart);
+	cdc_uart_reconfig_requested = true; // 标记需要重新配置UART，主循环中处理
+	cdc_pending_cmd = 0xFF; // 清除待处理命令
 }
 
 // EP0接收完成回调函数
@@ -187,9 +192,9 @@ uint8_t CDC_DataOut_Callback(USBD_HandleTypeDef *pdev, uint8_t epnum){
 
 			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
 
-			// 准备下一次接收
-			USBD_LL_PrepareReceive(pdev, CDC_ENDPOINT_DATA_OUT, hcdc->RxBuffer, CDC_DATA_MAX_PACKET_SIZE);
 		}
+		// 准备下一次接收
+		USBD_LL_PrepareReceive(pdev, CDC_ENDPOINT_DATA_OUT, hcdc->RxBuffer, CDC_DATA_MAX_PACKET_SIZE);
 	}
 
 	return USBD_OK;
@@ -235,6 +240,7 @@ void CDC_CheckAndTransmitUART(USBD_CDC_HandleTypeDef *hcdc){
 	}
 
 	if(len_to_send > 0){
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
 		HAL_UART_Transmit_DMA(hcdc->huart, &cdc_rx_buffer[cdc_rx_read_ptr], len_to_send);
 	}
 
@@ -244,18 +250,20 @@ void CDC_CheckAndTransmitUART(USBD_CDC_HandleTypeDef *hcdc){
 
 // USART3中断处理函数，处理空闲中断以触发数据发送
 void USART3_4_5_6_LPUART1_IRQHandler(void){
-	// 串口空闲中断触发，说明总线上没有数据了，可以检查是否有数据需要发送给主机
-	if(__HAL_UART_GET_FLAG(g_cdc->huart, UART_FLAG_IDLE)){
-		__HAL_UART_CLEAR_IDLEFLAG(g_cdc->huart);
+	HAL_UART_IRQHandler(g_cdc->huart);
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+	(void)Size;
+	if(huart == g_cdc->huart){
 		CDC_CheckAndTransmitUSB(&hUSB);
 	}
-
-	HAL_UART_IRQHandler(g_cdc->huart);
 }
 
 // UART发送完成回调函数，继续检查是否有更多数据需要发送到总线上
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart == g_cdc->huart){
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 		// 更新读取指针
 		uint32_t sent_len = huart->TxXferSize;
 		cdc_rx_read_ptr += sent_len;

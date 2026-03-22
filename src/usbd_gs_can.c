@@ -56,6 +56,9 @@ struct gs_device_state device_state;
 extern uint16_t current_bus_load_percent;
 extern const struct BoardConfig config;
 
+static volatile uint8_t g_current_setup_request = 0;
+static volatile uint16_t g_current_setup_index = 0;
+
 /* Configuration Descriptor */
 static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
 {
@@ -583,6 +586,8 @@ static uint8_t USBD_GS_CAN_Vendor_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 static uint8_t USBD_GS_CAN_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req)
 {
 	static uint8_t ifalt = 0;
+	g_current_setup_request = req->bRequest;
+	g_current_setup_index = req->wIndex;
 
 	// cdc
 	if(LOBYTE(req->wIndex) == CDC_CTRL_INTERFACE_NUM){
@@ -627,11 +632,10 @@ static uint8_t USBD_GS_CAN_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 	uint8_t err;
 
 	// CDC请求处理
-	if((req->bmRequest & USB_REQ_TYPE_MASK) == USB_REQ_TYPE_CLASS &&
-		(req->bmRequest & 0x1F) == 0x01 && // recipient: interface
-		req->wIndex == CDC_CTRL_INTERFACE_NUM
+	if((g_current_setup_request == CDC_SET_LINE_CODING) &&
+		g_current_setup_index == CDC_CTRL_INTERFACE_NUM
 	){
-		return CDC_EP0_RxReady(pdev, &hCDC, req->bRequest);
+		return CDC_EP0_RxReady(pdev, &hCDC, g_current_setup_request);
 	}
 
 	/*
