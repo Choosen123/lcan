@@ -143,7 +143,7 @@ int main(void)
 		if(cdc_uart_reconfig_requested){
 			cdc_uart_reconfig_requested = false;
 			HAL_UART_Init(&huart3);
-			HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_tx_buffer, CDC_RX_BUFFER_SIZE);
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_tx_buffer, CDC_TX_BUFFER_SIZE);
 		}
 	}
 }

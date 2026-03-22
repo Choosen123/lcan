@@ -250,6 +250,11 @@ void CDC_CheckAndTransmitUART(USBD_CDC_HandleTypeDef *hcdc){
 
 // USART3中断处理函数，处理空闲中断以触发数据发送
 void USART3_4_5_6_LPUART1_IRQHandler(void){
+	if(__HAL_UART_GET_FLAG(g_cdc->huart, UART_FLAG_IDLE)){
+		__HAL_UART_CLEAR_IDLEFLAG(g_cdc->huart);
+		CDC_CheckAndTransmitUSB(&hUSB);
+	}
+
 	HAL_UART_IRQHandler(g_cdc->huart);
 }
 
