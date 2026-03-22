@@ -109,7 +109,7 @@ int main(void)
 	USBD_GS_CAN_Init(&hGS_CAN, &hUSB);
 	USBD_Start(&hUSB);
 
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_rx_buffer, CDC_RX_BUFFER_SIZE);
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_tx_buffer, CDC_RX_BUFFER_SIZE);
 
 	while (1) {
 		for (unsigned int i = 0; i < ARRAY_SIZE(hGS_CAN.channels); i++) {

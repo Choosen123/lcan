@@ -1,4 +1,5 @@
 #include "cdc.h"
+#include "stm32g0xx_hal_def.h"
 #include "stm32g0xx_hal_uart.h"
 #include "usbd_core.h"
 #include "usbd_def.h"
@@ -59,6 +60,10 @@ uint8_t CDC_Setup_Request(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req){
 			USBD_CtlSendData(pdev, line_coding_data, 7);
 			break;
 
+		case CDC_SET_CONTROL_LINE_STATE:
+			USBD_CtlSendData(pdev, NULL, 0);
+			break;
+
 		default:
             USBD_CtlError(pdev, req);
             return USBD_FAIL;
@@ -115,7 +120,7 @@ void CDC_SetLineCoding(USBD_CDC_HandleTypeDef* hcdc, const USBD_CDC_LineCodingTy
 			break;
 	}
 
-	HAL_RS485Ex_Init(hcdc->huart, UART_DE_POLARITY_HIGH, 1, 1);
+	HAL_UART_Init(hcdc->huart);
 }
 
 // EP0接收完成回调函数
