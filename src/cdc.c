@@ -160,7 +160,7 @@ uint8_t CDC_DataIn_Callback(USBD_HandleTypeDef *pdev, uint8_t epnum){
 		// usb发送完成，清除发送忙标志
 		hcdc->tx_busy = false;
 
-		CDC_CheckAndTransmitUART(hcdc); // 检查是否有更多数据需要发送
+		CDC_CheckAndTransmitUSB(&hUSB); // 检查是否有更多数据需要发送
 	}
 	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
 	return USBD_OK;
@@ -201,6 +201,11 @@ uint8_t CDC_DataOut_Callback(USBD_HandleTypeDef *pdev, uint8_t epnum){
 }
 
 void CDC_CheckAndTransmitUSB(USBD_HandleTypeDef *pdev){
+	if(pdev->dev_state != USBD_STATE_CONFIGURED){
+		g_cdc->tx_busy = false; // 设备未配置，确保发送标志被清除
+		return; // 设备未配置，无法发送
+	}
+
 	if(g_cdc->tx_busy){
 		return; // 上一次发送还未完成
 	}
@@ -254,7 +259,10 @@ void USART3_4_5_6_LPUART1_IRQHandler(void){
 		__HAL_UART_CLEAR_IDLEFLAG(g_cdc->huart);
 		CDC_CheckAndTransmitUSB(&hUSB);
 	}
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3ed551f (修复了接收问题)
 	HAL_UART_IRQHandler(g_cdc->huart);
 }
 
