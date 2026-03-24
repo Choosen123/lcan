@@ -23,6 +23,8 @@ volatile bool cdc_uart_reconfig_requested = false;
 static uint8_t line_coding_data[7];
 
 static USBD_CDC_HandleTypeDef *g_cdc;
+static uint32_t cdc_usb_last_dma_ptr = 0;
+static uint32_t cdc_usb_last_rx_tick = 0;
 
 // 初始化CDC接口
 void CDC_Init(USBD_CDC_HandleTypeDef *hcdc, UART_HandleTypeDef *huart)
@@ -40,6 +42,8 @@ void CDC_Init(USBD_CDC_HandleTypeDef *hcdc, UART_HandleTypeDef *huart)
     g_cdc->rx_ptr_read = 0;
 
     g_cdc->huart = huart;
+    cdc_usb_last_dma_ptr = 0;
+    cdc_usb_last_rx_tick = HAL_GetTick();
 }
 
 // 处理CDC类请求
@@ -211,18 +215,35 @@ void CDC_CheckAndTransmitUSB(USBD_HandleTypeDef *pdev){
 	}
 
 	uint32_t current_dma_ptr = CDC_TX_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(g_cdc->huart->hdmarx);
+	uint32_t now_tick = HAL_GetTick();
+	if(current_dma_ptr != cdc_usb_last_dma_ptr){
+		cdc_usb_last_dma_ptr = current_dma_ptr;
+		cdc_usb_last_rx_tick = now_tick;
+	}
+
 	if(cdc_tx_read_ptr == current_dma_ptr){
 		return; // 没有新数据需要发送
 	}
 
-	uint32_t send_len;
+	uint32_t pending_len;
+	if(cdc_tx_read_ptr <= current_dma_ptr){
+		pending_len = current_dma_ptr - cdc_tx_read_ptr;
+	}else{
+		pending_len = CDC_TX_BUFFER_SIZE - cdc_tx_read_ptr;
+	}
+
+	bool packet_full = (pending_len >= CDC_USB_BULK_TRIGGER_SIZE);
+	bool timeout_reached = ((uint32_t)(now_tick - cdc_usb_last_rx_tick) >= CDC_USB_COALESCE_MS);
+
+	if(!packet_full && !timeout_reached){
+		return;
+	}
+
+	uint32_t send_len = pending_len;
 	uint8_t *send_ptr = &cdc_tx_buffer[cdc_tx_read_ptr];
 
-	if(cdc_tx_read_ptr <= current_dma_ptr){
-		send_len = current_dma_ptr - cdc_tx_read_ptr;
-		cdc_tx_read_ptr += send_len;
-	}else{
-		send_len = CDC_TX_BUFFER_SIZE - cdc_tx_read_ptr;
+	cdc_tx_read_ptr += send_len;
+	if(cdc_tx_read_ptr >= CDC_TX_BUFFER_SIZE){
 		cdc_tx_read_ptr = 0; // 回绕到缓冲区开头
 	}
 
@@ -253,20 +274,14 @@ void CDC_CheckAndTransmitUART(USBD_CDC_HandleTypeDef *hcdc){
 }
 
 
-// USART3中断处理函数，处理空闲中断以触发数据发送
+// USART3中断处理函数，交由HAL处理DMA接收事件
 void USART3_4_5_6_LPUART1_IRQHandler(void){
-	if(__HAL_UART_GET_FLAG(g_cdc->huart, UART_FLAG_IDLE)){
-		__HAL_UART_CLEAR_IDLEFLAG(g_cdc->huart);
-		CDC_CheckAndTransmitUSB(&hUSB);
-	}
 	HAL_UART_IRQHandler(g_cdc->huart);
 }
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
 	(void)Size;
-	if(huart == g_cdc->huart){
-		CDC_CheckAndTransmitUSB(&hUSB);
-	}
+	(void)huart;
 }
 
 // UART发送完成回调函数，继续检查是否有更多数据需要发送到总线上
