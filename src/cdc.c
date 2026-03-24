@@ -25,6 +25,62 @@ static uint8_t line_coding_data[7];
 static USBD_CDC_HandleTypeDef *g_cdc;
 static uint32_t cdc_usb_last_dma_ptr = 0;
 static uint32_t cdc_usb_last_rx_tick = 0;
+static uint32_t cdc_usb_coalesce_ms = CDC_USB_COALESCE_MIN_MS;
+
+static uint32_t CDC_GetUartWordBits(uint32_t word_length)
+{
+	switch (word_length) {
+		case UART_WORDLENGTH_7B:
+			return 7U;
+		case UART_WORDLENGTH_9B:
+			return 9U;
+		case UART_WORDLENGTH_8B:
+		default:
+			return 8U;
+	}
+}
+
+static uint32_t CDC_GetUartStopBits(uint32_t stop_bits)
+{
+	switch (stop_bits) {
+		case UART_STOPBITS_2:
+			return 2U;
+		case UART_STOPBITS_1:
+		default:
+			return 1U;
+	}
+}
+
+static void CDC_UpdateUsbCoalesceTimeout(UART_HandleTypeDef *huart)
+{
+	uint32_t baud = huart->Init.BaudRate;
+	uint32_t word_bits = CDC_GetUartWordBits(huart->Init.WordLength);
+	bool parity_enabled = (huart->Init.Parity != UART_PARITY_NONE);
+	uint32_t stop_bits = CDC_GetUartStopBits(huart->Init.StopBits);
+	uint32_t data_bits = word_bits;
+
+	if (baud == 0U) {
+		cdc_usb_coalesce_ms = CDC_USB_COALESCE_MIN_MS;
+		return;
+	}
+
+	/* STM32 UART word length includes parity bit when parity is enabled. */
+	if (parity_enabled && (data_bits > 0U)) {
+		data_bits--;
+	}
+
+	uint32_t frame_bits = 1U + data_bits + (parity_enabled ? 1U : 0U) + stop_bits;
+	uint64_t numerator = (uint64_t)frame_bits * CDC_USB_COALESCE_CHARS * 1000ULL;
+	uint32_t timeout_ms = (uint32_t)((numerator + baud - 1U) / baud);
+
+	if (timeout_ms < CDC_USB_COALESCE_MIN_MS) {
+		timeout_ms = CDC_USB_COALESCE_MIN_MS;
+	} else if (timeout_ms > CDC_USB_COALESCE_MAX_MS) {
+		timeout_ms = CDC_USB_COALESCE_MAX_MS;
+	}
+
+	cdc_usb_coalesce_ms = timeout_ms;
+}
 
 // 初始化CDC接口
 void CDC_Init(USBD_CDC_HandleTypeDef *hcdc, UART_HandleTypeDef *huart)
@@ -44,6 +100,7 @@ void CDC_Init(USBD_CDC_HandleTypeDef *hcdc, UART_HandleTypeDef *huart)
     g_cdc->huart = huart;
     cdc_usb_last_dma_ptr = 0;
     cdc_usb_last_rx_tick = HAL_GetTick();
+    CDC_UpdateUsbCoalesceTimeout(huart);
 }
 
 // 处理CDC类请求
@@ -128,6 +185,7 @@ void CDC_SetLineCoding(USBD_CDC_HandleTypeDef* hcdc, const USBD_CDC_LineCodingTy
 			break;
 	}
 
+	CDC_UpdateUsbCoalesceTimeout(hcdc->huart);
 	cdc_uart_reconfig_requested = true; // 标记需要重新配置UART，主循环中处理
 	cdc_pending_cmd = 0xFF; // 清除待处理命令
 }
@@ -233,7 +291,7 @@ void CDC_CheckAndTransmitUSB(USBD_HandleTypeDef *pdev){
 	}
 
 	bool packet_full = (pending_len >= CDC_USB_BULK_TRIGGER_SIZE);
-	bool timeout_reached = ((uint32_t)(now_tick - cdc_usb_last_rx_tick) >= CDC_USB_COALESCE_MS);
+	bool timeout_reached = ((uint32_t)(now_tick - cdc_usb_last_rx_tick) >= cdc_usb_coalesce_ms);
 
 	if(!packet_full && !timeout_reached){
 		return;
