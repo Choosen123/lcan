@@ -259,10 +259,6 @@ void USART3_4_5_6_LPUART1_IRQHandler(void){
 		__HAL_UART_CLEAR_IDLEFLAG(g_cdc->huart);
 		CDC_CheckAndTransmitUSB(&hUSB);
 	}
-<<<<<<< HEAD
-
-=======
->>>>>>> 3ed551f (修复了接收问题)
 	HAL_UART_IRQHandler(g_cdc->huart);
 }
 
