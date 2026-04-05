@@ -45,12 +45,20 @@ THE SOFTWARE.
 #include "usbd_desc.h"
 #include "usbd_gs_can.h"
 #include "util.h"
+#include "cdc.h"
+#include "uart.h"
+#include "main.h"
+#include "dma.h"
 
 void HAL_MspInit(void);
 static void SystemClock_Config(void);
 
 static USBD_GS_CAN_HandleTypeDef hGS_CAN;
-static USBD_HandleTypeDef hUSB = {0};
+USBD_HandleTypeDef hUSB = {0};
+
+USBD_CDC_HandleTypeDef hCDC;
+
+extern volatile bool cdc_uart_reconfig_requested;
 
 USBD_HandleTypeDef* get_usb_handle(void)
 {
@@ -61,6 +69,11 @@ int main(void)
 {
 	HAL_Init();
 	SystemClock_Config();
+
+	gpio_init();
+	DMA_Init();
+	USART3_Init();
+	CDC_Init(&hCDC, &huart3);
 
 	config.setup(&hGS_CAN);
 	timer_init();
@@ -103,6 +116,8 @@ int main(void)
 	USBD_GS_CAN_Init(&hGS_CAN, &hUSB);
 	USBD_Start(&hUSB);
 
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_tx_buffer, CDC_RX_BUFFER_SIZE);
+
 	while (1) {
 		for (unsigned int i = 0; i < ARRAY_SIZE(hGS_CAN.channels); i++) {
 			can_data_t *channel = &hGS_CAN.channels[i];
@@ -116,6 +131,10 @@ int main(void)
 		USBD_GS_CAN_ReceiveFromHost(&hUSB);
 		USBD_GS_CAN_SendToHost(&hUSB);
 
+		/* CDC RS485 */
+		CDC_CheckAndTransmitUSB(&hUSB);
+		CDC_CheckAndTransmitUART(&hCDC);
+
 		for (unsigned int i = 0; i < ARRAY_SIZE(hGS_CAN.channels); i++) {
 			can_data_t *channel = &hGS_CAN.channels[i];
 
@@ -127,6 +146,12 @@ int main(void)
 
 		if (USBD_GS_CAN_DfuDetachRequested(&hUSB)) {
 			dfu_run_bootloader();
+		}
+
+		if(cdc_uart_reconfig_requested){
+			cdc_uart_reconfig_requested = false;
+			HAL_UART_Init(&huart3);
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart3, cdc_tx_buffer, CDC_TX_BUFFER_SIZE);
 		}
 	}
 }
@@ -147,4 +172,16 @@ void HAL_MspInit(void)
 void SystemClock_Config(void)
 {
 	device_sysclock_config();
+}
+
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  dfu_run_bootloader();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
 }

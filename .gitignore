@@ -16,3 +16,7 @@
 .settings
 compile_commands.json
 *.rar
+<<<<<<< HEAD
+=======
+
+>>>>>>> only-rs485

@@ -134,7 +134,7 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 	pdev->pData = &hpcd_USB_FS;
 
 	hpcd_USB_FS.Instance = USB_INTERFACE;
-	hpcd_USB_FS.Init.dev_endpoints = 5U;
+	hpcd_USB_FS.Init.dev_endpoints = 8U;
 	hpcd_USB_FS.Init.speed = PCD_SPEED_FULL;
 	hpcd_USB_FS.Init.ep0_mps = EP_MPS_64;
 	hpcd_USB_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
@@ -149,7 +149,7 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 	hpcd_USB_FS.Init.Sof_enable = DISABLE;
 	hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
 	hpcd_USB_FS.Init.vbus_sensing_enable = DISABLE;
-	hpcd_USB_FS.Init.bulk_doublebuffer_enable = ENABLE;
+	hpcd_USB_FS.Init.bulk_doublebuffer_enable = DISABLE;
 	hpcd_USB_FS.Init.iso_singlebuffer_enable = DISABLE;
 #endif
 	HAL_PCD_Init(&hpcd_USB_FS);
@@ -163,10 +163,26 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 	* 0x158 - 0x1D7 (128 bytes) EP1 OUT (buffer 2)
 	*/
 #if defined(USB) || defined(USB_DRD_FS)
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x00, PCD_SNG_BUF, 0x18);
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x80, PCD_SNG_BUF, 0x58);
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x81, PCD_SNG_BUF, 0x98);
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x02, PCD_DBL_BUF, 0x00D80158);
+	// 1. EP0 (0x00/0x80)
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x00, PCD_SNG_BUF, 0x0040); // 占用 64B
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x80, PCD_SNG_BUF, 0x0080); // 占用 64B
+
+	// 2. EP1 (CAN 接口 0x01/0x81)
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x01, PCD_SNG_BUF, 0x0100); // 占用 128B (拉开距离)
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x81, PCD_SNG_BUF, 0x0180); // 占用 128B
+
+	// 3. EP3 (CDC 控制 0x83)
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x83, PCD_SNG_BUF, 0x0200); // 占用 64B
+
+	// 4. EP4 (CDC 数据 0x04/0x84) - 重点优待，给双倍空间
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x04, PCD_SNG_BUF, 0x0280); // 128B
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x84, PCD_SNG_BUF, 0x0300); // 128B
+
+	// HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x00, PCD_SNG_BUF, 0x18);
+	// HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x80, PCD_SNG_BUF, 0x58);
+	// HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x81, PCD_SNG_BUF, 0x98);
+	// HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData, 0x02, PCD_DBL_BUF, 0x00D80158);
+
 #elif defined(USB_OTG_FS)
 	HAL_PCDEx_SetRxFiFo((PCD_HandleTypeDef*)pdev->pData, USB_RX_FIFO_SIZE); // shared RX FIFO
 	HAL_PCDEx_SetTxFiFo((PCD_HandleTypeDef*)pdev->pData, 0U, 64U / 4U);     // 0x80, 64 bytes (div by 4 for words)

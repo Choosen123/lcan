@@ -10,6 +10,7 @@ add_compile_options(
 	-Wall
 	-Werror
 	-Wextra
+	-Wparentheses
 	-Wstrict-prototypes
 	-fdata-sections
 	-ffat-lto-objects
@@ -22,7 +23,7 @@ add_compile_options(
 	-mthumb
 	-std=gnu11
 )
-
+add_definitions(-DHSE_VALUE=25000000U)
 #need these later, per-platform
 set(CPUFLAGS_F0 -mcpu=cortex-m0)
 set(CPUFLAGS_F4 -mcpu=cortex-m4)
@@ -114,7 +115,8 @@ function(dfu_flash target)
 		add_custom_command( TARGET ${target}
 			BYPRODUCTS ${target}.dfu
 			COMMAND ${CMAKE_OBJCOPY} -O binary ${target} ${target}.dfu
-			COMMAND ${DFU_SUFFIX_EXECUTABLE} --add ${target}.dfu --vid 1d50 --pid 606f 1>/dev/null
+			# COMMAND ${DFU_SUFFIX_EXECUTABLE} --add ${target}.dfu --vid 1d50 --pid 606f 1>/dev/null
+			COMMAND ${DFU_SUFFIX_EXECUTABLE} --add ${target}.dfu --vid 1d50 --pid 606f
 			COMMENT "create and sign dfu bin file: ${TGTNAME}_fw"
 		)
 
@@ -141,9 +143,9 @@ endfunction()
 # at configure time.
 
 function(populate_ldscript)
-    set(prefix LDV)
-    set(options)
-    set(oneValueArgs
+	set(prefix LDV)
+	set(options)
+	set(oneValueArgs
 		CPU_FAMILY
 		FLASH_START
 		FLASH_SIZE
@@ -256,6 +258,9 @@ function(add_g0b1_target TGTNAME)
 	target_sources(${TGTNAME}_fw PRIVATE "src/boards/g0b1-${TGTNAME}.c")
 	target_sources(${TGTNAME}_fw PRIVATE "src/can/m_can.c")
 	target_sources(${TGTNAME}_fw PRIVATE "src/device/device_g0.c")
+	target_sources(${TGTNAME}_fw PRIVATE "src/cdc.c")
+	target_sources(${TGTNAME}_fw PRIVATE "src/uart.c")
+	target_sources(${TGTNAME}_fw PRIVATE "src/dma.c")
 	target_link_options(${TGTNAME}_fw BEFORE PRIVATE ${CPUFLAGS_G0})
 	target_link_libraries(${TGTNAME}_fw PRIVATE STM32_HAL_STM32G0B1xK STM32_USB_Device_Library_STM32G0B1xK)
 endfunction()
@@ -267,29 +272,31 @@ set(TGTF072_LIST "candleLight" "CANable_MKS" "CONVERTDEVICE_xCAN" "DSD_TECH_SH_C
 set(TGTF407_LIST "STM32F4_DevBoard")
 set(TGTG0B1_LIST "budgetcan" "CONVERTDEVICE_xCANFD" "nucleo_g0b1re" "candleLightFD")
 
+set(BUILD_candleLightFD ON)
+
 foreach (TGTNAME IN LISTS TGTF042_LIST)
-	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" ON)
+	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" OFF)
 	if (BUILD_${TGTNAME})
 		add_f042_target(${TGTNAME})
 	endif()
 endforeach()
 
 foreach (TGTNAME IN LISTS TGTF072_LIST)
-	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" ON)
+	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" OFF)
 	if (BUILD_${TGTNAME})
 		add_f072_target(${TGTNAME})
 	endif()
 endforeach()
 
 foreach (TGTNAME IN LISTS TGTF407_LIST)
-	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" ON)
+	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" OFF)
 	if (BUILD_${TGTNAME})
 		add_f407_target(${TGTNAME})
 	endif()
 endforeach()
 
 foreach (TGTNAME IN LISTS TGTG0B1_LIST)
-	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" ON)
+	option(BUILD_${TGTNAME} "Build firmware for \"${TGTNAME}\" (default=yes)" OFF)
 	if (BUILD_${TGTNAME})
 		add_g0b1_target(${TGTNAME})
 	endif()

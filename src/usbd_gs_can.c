@@ -46,6 +46,9 @@ THE SOFTWARE.
 #include "usbd_ioreq.h"
 #include "util.h"
 #include "board.h"
+#include "cdc.h"
+
+extern USBD_CDC_HandleTypeDef hCDC;
 
 static volatile bool is_usb_suspend_cb = false;
 struct gs_device_state device_state;
@@ -53,7 +56,12 @@ struct gs_device_state device_state;
 extern uint16_t current_bus_load_percent;
 extern const struct BoardConfig config;
 
+<<<<<<< HEAD
 USBD_HandleTypeDef* get_usb_handle(void);
+=======
+static volatile uint8_t g_current_setup_request = 0;
+static volatile uint16_t g_current_setup_index = 0;
+>>>>>>> only-rs485
 
 /* Configuration Descriptor */
 static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
@@ -62,9 +70,9 @@ static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
 	/* Configuration Descriptor */
 	0x09,                             /* bLength */
 	USB_DESC_TYPE_CONFIGURATION,      /* bDescriptorType */
-	USB_CAN_CONFIG_DESC_SIZ,          /* wTotalLength */
-	0x00,
-	0x02,                             /* bNumInterfaces */
+	LOBYTE(USB_CAN_CONFIG_DESC_SIZ),          /* wTotalLength */
+	HIBYTE(USB_CAN_CONFIG_DESC_SIZ),
+	0x04,                             /* bNumInterfaces */
 	0x01,                             /* bConfigurationValue */
 	USBD_IDX_CONFIG_STR,              /* iConfiguration */
 	0x80,                             /* bmAttributes */
@@ -129,6 +137,77 @@ static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
 	0x00, 0x08,                       /* wTransferSize */
 	0x1a, 0x01,                       /* bcdDFUVersion: 1.1a */
 
+
+	/*---------------------------------------------------------------------------*/
+	/* CDC Interface Descriptor (RS485) */
+	/*---------------------------------------------------------------------------*/
+	0x08,	/* bLength */
+	0x0B,	/* bDescriptorType: IAD */
+	0x02,	/* bFirstInterface */
+	0x02,	/* bInterfaceCount */
+	0x02,	/* bFunctionClass: CDC */
+	0x02,	/* bFunctionSubClass ACM */
+	0x01,	/* bFunctionProtocol AT Commands */
+	0x00,	/* iFunction */
+
+	/*---------------------------------------------------------------------------*/
+	/* CDC Control Interface Descriptor (Interface 2) */
+	/*---------------------------------------------------------------------------*/
+	0x09,	/* bLength */
+	0x04,	/* bDescriptorType: Interface */
+	0x02,	/* bInterfaceNumber */
+	0x00,	/* bAlternateSetting */
+	0x01,	/* bNumEndpoints */
+	0x02,	/* bInterfaceClass: CDC */
+	0x02,	/* bInterfaceSubClass ACM */
+	0x01,	/* bInterfaceProtocol AT Commands */
+	0x00,	/* iInterface */
+
+	/* CDC Header Functional Descriptor */
+	0x05, 0x24, 0x00, 0x10, 0x01,
+	/* CDC Call Management Functional Descriptor */
+	0x05, 0x24, 0x01, 0x00, 0x03,
+	/* CDC ACM Functional Descriptor */
+	0x04, 0x24, 0x02, 0x02,
+	/* CDC Union Functional Descriptor (Master=2, Slave=3) */
+	0x05, 0x24, 0x06, 0x02, 0x03,
+
+	/* CDC Control Endpoint Descriptor (EP3 Interrupt IN) */
+	0x07,	/* bLength */
+	0x05,	/* bDescriptorType: Endpoint */
+	0x83,	/* bEndpointAddress: IN endpoint 3 */
+	0x03,	/* bmAttributes: Interrupt */
+	LOBYTE(0x08), HIBYTE(0x08),	/* wMaxPacketSize */
+	0x10,	/* bInterval */
+
+	/*---------------------------------------------------------------------------*/
+	/* CDC Data Interface Descriptor (Interface 3) */
+	/*---------------------------------------------------------------------------*/
+	0x09,	/* bLength */
+	0x04,	/* bDescriptorType: Interface */
+	0x03,	/* bInterfaceNumber */
+	0x00,	/* bAlternateSetting */
+	0x02,	/* bNumEndpoints */
+	0x0A,	/* bInterfaceClass: CDC Data */
+	0x00,	/* bInterfaceSubClass */
+	0x00,	/* bInterfaceProtocol */
+	0x00,	/* iInterface */
+
+	/* CDC Data Endpoint Descriptor (EP4 OUT) */
+	0x07, /*bLength*/
+	0x05,
+	0x04, /* bEndpointAddress: OUT endpoint 4 */
+	0x02, /* bmAttributes: Bulk */
+	LOBYTE(0x40), HIBYTE(0x00), /* wMaxPacketSize */
+	0x00, /* bInterval */
+
+	/* CDC Data Endpoint Descriptor (EP4 IN) */
+	0x07, /*bLength*/
+	0x05,
+	0x84, /* bEndpointAddress: IN endpoint 4 */
+	0x02, /* bmAttributes: Bulk */
+	LOBYTE(0x40), HIBYTE(0x00), /* wMaxPacketSize */
+	0x00, /* bInterval */
 };
 
 /* Microsoft OS String Descriptor */
@@ -256,6 +335,13 @@ static uint8_t USBD_GS_CAN_Start(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 	USBD_LL_OpenEP(pdev, GSUSB_ENDPOINT_OUT, USBD_EP_TYPE_BULK, CAN_DATA_MAX_PACKET_SIZE);
 	USBD_GS_CAN_PrepareReceive(pdev);
 
+	// CDC interface (RS485)
+	USBD_LL_OpenEP(pdev, CDC_ENDPOINT_CMD, USBD_EP_TYPE_INTR, CDC_CMD_MAX_PCAKET_SIZE);
+	USBD_LL_OpenEP(pdev, CDC_ENDPOINT_DATA_IN, USBD_EP_TYPE_BULK, CDC_DATA_MAX_PACKET_SIZE);
+	USBD_LL_OpenEP(pdev, CDC_ENDPOINT_DATA_OUT, USBD_EP_TYPE_BULK, CDC_DATA_MAX_PACKET_SIZE);
+
+	USBD_LL_PrepareReceive(pdev, CDC_ENDPOINT_DATA_OUT, hCDC.RxBuffer, CDC_DATA_MAX_PACKET_SIZE);
+
 	return USBD_OK;
 
 }
@@ -266,6 +352,10 @@ static uint8_t USBD_GS_CAN_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 
 	USBD_LL_CloseEP(pdev, GSUSB_ENDPOINT_IN);
 	USBD_LL_CloseEP(pdev, GSUSB_ENDPOINT_OUT);
+
+	USBD_LL_CloseEP(pdev, CDC_ENDPOINT_CMD);
+	USBD_LL_CloseEP(pdev, CDC_ENDPOINT_DATA_IN);
+	USBD_LL_CloseEP(pdev, CDC_ENDPOINT_DATA_OUT);
 
 	return USBD_OK;
 }
@@ -486,7 +576,13 @@ static uint8_t USBD_GS_CAN_Vendor_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 	   && (req->wIndex == DFU_INTERFACE_NUM)
 		) {
 		return USBD_GS_CAN_DFU_Request(pdev, req);
-	} else {
+	} else if(
+		(req_type == 0x01) && (req_rcpt == 0x01)
+		&& (req->wIndex == CDC_CTRL_INTERFACE_NUM)
+	){
+		return CDC_Setup_Request(pdev, req);
+
+	}else{
 		return USBD_GS_CAN_Config_Request(pdev, req);
 	}
 }
@@ -494,6 +590,13 @@ static uint8_t USBD_GS_CAN_Vendor_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 static uint8_t USBD_GS_CAN_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req)
 {
 	static uint8_t ifalt = 0;
+	g_current_setup_request = req->bRequest;
+	g_current_setup_index = req->wIndex;
+
+	// cdc
+	if(LOBYTE(req->wIndex) == CDC_CTRL_INTERFACE_NUM){
+		return CDC_Setup_Request(pdev, req);
+	}
 
 	switch (req->bmRequest & USB_REQ_TYPE_MASK) {
 
@@ -531,6 +634,13 @@ static uint8_t USBD_GS_CAN_EP0_RxReady(USBD_HandleTypeDef *pdev) {
 	can_data_t *channel = NULL;
 	USBD_SetupReqTypedef *req = &hcan->last_setup_request;
 	uint8_t err;
+
+	// CDC请求处理
+	if((g_current_setup_request == CDC_SET_LINE_CODING) &&
+		g_current_setup_index == CDC_CTRL_INTERFACE_NUM
+	){
+		return CDC_EP0_RxReady(pdev, &hCDC, g_current_setup_request);
+	}
 
 	/*
 	 * The control messages GS_USB_BREQ_HOST_FORMAT and
@@ -629,7 +739,12 @@ out_fail:
 
 static uint8_t USBD_GS_CAN_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
-	(void) epnum;
+	// (void) epnum;
+
+	// 如果是CDC数据IN端点，交给CDC处理
+	if(epnum == (CDC_ENDPOINT_DATA_IN & 0x7F)){
+		return CDC_DataIn_Callback(pdev, epnum);
+	}
 
 	bool was_irq_enabled = disable_irq();
 	list_add_tail(&hcan->to_host_buf->list, &hcan->list_frame_pool);
@@ -644,6 +759,9 @@ static uint8_t USBD_GS_CAN_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum) {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
 	can_data_t *channel;
 
+	if(epnum == (CDC_ENDPOINT_DATA_OUT & 0x7F)){
+		return CDC_DataOut_Callback(pdev, epnum);
+	}
 	uint32_t rxlen = USBD_LL_GetRxDataSize(pdev, epnum);
 	if (rxlen < (struct_size(&hcan->from_host_buf->frame, classic_can, 1))) {
 		// Invalid frame length, just ignore it and receive into the same buffer

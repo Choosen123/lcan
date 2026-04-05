@@ -30,8 +30,11 @@ THE SOFTWARE.
 #include "config.h"
 #include "hal_include.h"
 #include "stm32g0b1xx.h"
+#include "dfu.h"
 
 extern const struct BoardConfig config;
+extern DMA_HandleTypeDef hdma_usart3_rx;
+extern DMA_HandleTypeDef hdma_usart3_tx;
 
 static uint32_t bus_busy_samples = 0;
 static uint32_t bus_total_samples = 0;
@@ -45,6 +48,7 @@ void NMI_Handler(void)
 
 void HardFault_Handler(void)
 {
+	dfu_run_bootloader();
 	__asm__ ("BKPT");
 	while (1);
 }
@@ -232,7 +236,12 @@ const pFunc InterruptVectorTable[84] = {
 	USB_Handler,          // int 66: USB OTG FS
 	// don't need to define any interrupts after this one
 };
+
 #elif defined(STM32G0)
+extern void USART3_4_5_6_LPUART1_IRQHandler(void);
+void DMA1_Channel1_IRQHandler(void);
+void DMA1_Channel2_3_IRQHandler(void);
+
 __attribute__((used, section(".vectors")))
 const pFunc InterruptVectorTable[48] = {
 	(pFunc)(&__StackTop), // initial stack pointer
@@ -261,8 +270,8 @@ const pFunc InterruptVectorTable[48] = {
 	0,                    /* EXTI Line 2 and 3            */
 	0,                    /* EXTI Line 4 to 15            */
 	USB_Handler,          /* USB, UCPD1, UCPD2            */
-	0,                    /* DMA1 Channel 1               */
-	0,                    /* DMA1 Channel 2 and Channel 3 */
+	DMA1_Channel1_IRQHandler, /* DMA1 Channel 1               */
+	DMA1_Channel2_3_IRQHandler, /* DMA1 Channel 2 and Channel 3 */
 	0,                    /* DMA1 Ch4 to Ch7, DMA2 Ch1 to Ch5, DMAMUX1 overrun */
 	0,                    /* ADC1, COMP1 and COMP2         */
 	0,                    /* TIM1 Break, Update, Trigger and Commutation */
@@ -279,10 +288,38 @@ const pFunc InterruptVectorTable[48] = {
 	0,                    /* I2C2, I2C3                   */
 	0,                    /* SPI1                         */
 	0,                    /* SPI2, SPI3                   */
-	0,                    /* USART1                       */
+	0,    				  /* USART1                       */
 	0,                    /* USART2 & LPUART2             */
-	0,                    /* USART3, USART4, USART5, USART6, LPUART1   */
+	USART3_4_5_6_LPUART1_IRQHandler,                    /* USART3, USART4, USART5, USART6, LPUART1   */
 	0,                    /* CEC                          */
 	// don't need to define any interrupts after this one
 };
+
+/**
+  * @brief This function handles DMA1 channel 1 interrupt.
+  */
+void DMA1_Channel1_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart3_rx);
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA1 channel 2 and channel 3 interrupts.
+  */
+void DMA1_Channel2_3_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel2_3_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel2_3_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart3_tx);
+  /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel2_3_IRQn 1 */
+}
 #endif

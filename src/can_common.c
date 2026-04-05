@@ -34,7 +34,7 @@ const struct gs_device_bt_const_extended CAN_btconst_ext;
 #endif
 
 USBD_HandleTypeDef* get_usb_handle(void);
-inline void CAN_RestartReceiveFromGost(USBD_HandleTypeDef *pdev, USBD_GS_CAN_HandleTypeDef *hcan){
+void CAN_RestartReceiveFromGost(USBD_HandleTypeDef *pdev, USBD_GS_CAN_HandleTypeDef *hcan){
 	if(hcan->from_host_buf == NULL){
 		USBD_GS_CAN_ReceiveFromHost(pdev);
 	}
