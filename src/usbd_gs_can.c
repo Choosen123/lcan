@@ -56,12 +56,9 @@ struct gs_device_state device_state;
 extern uint16_t current_bus_load_percent;
 extern const struct BoardConfig config;
 
-<<<<<<< HEAD
 USBD_HandleTypeDef* get_usb_handle(void);
-=======
 static volatile uint8_t g_current_setup_request = 0;
 static volatile uint16_t g_current_setup_index = 0;
->>>>>>> only-rs485
 
 /* Configuration Descriptor */
 static const uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] =
