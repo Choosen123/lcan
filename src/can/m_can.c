@@ -98,6 +98,7 @@ void can_set_bittiming(can_data_t *channel, const struct gs_device_bittiming *ti
 	channel->channel.Init.NominalTimeSeg1 = tseg1;
 	channel->channel.Init.NominalTimeSeg2 = timing->phase_seg2;
 	channel->channel.Init.NominalPrescaler = timing->brp;
+	channel->nominal_bitrate = CAN_btconst.fclk_can / (timing->brp * (1 + tseg1 + timing->phase_seg2));
 }
 
 void can_set_data_bittiming(can_data_t *channel, const struct gs_device_bittiming *timing)
@@ -108,6 +109,7 @@ void can_set_data_bittiming(can_data_t *channel, const struct gs_device_bittimin
 	channel->channel.Init.DataTimeSeg1 = tseg1;
 	channel->channel.Init.DataTimeSeg2 = timing->phase_seg2;
 	channel->channel.Init.DataPrescaler = timing->brp;
+	channel->data_bitrate = CAN_btconst.fclk_can / (timing->brp * (1 + tseg1 + timing->phase_seg2));
 }
 
 void can_enable(can_data_t *channel, uint32_t mode)

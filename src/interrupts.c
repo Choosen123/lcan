@@ -35,10 +35,7 @@ THE SOFTWARE.
 extern const struct BoardConfig config;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 extern DMA_HandleTypeDef hdma_usart3_tx;
-
-static uint32_t bus_busy_samples = 0;
-static uint32_t bus_total_samples = 0;
-volatile uint16_t current_bus_load_percent = 0;
+extern USBD_GS_CAN_HandleTypeDef hGS_CAN;
 
 void NMI_Handler(void)
 {
@@ -58,20 +55,17 @@ void SysTick_Handler(void)
 	HAL_IncTick();
 	HAL_SYSTICK_IRQHandler();
 
-	for(int i=0; i<NUM_CAN_CHANNEL; i++){
-		const struct BoardChannelConfig *channel = &config.channels[i];
-
-		uint32_t act = (channel->interface->PSR & FDCAN_PSR_ACT_Msk) >> FDCAN_PSR_ACT_Pos;
-		if(act >= 2) {
-			bus_busy_samples++;
+	static uint32_t count = 0;
+	if(++count >= 100){
+		for(int i=0; i<NUM_CAN_CHANNEL; i++){
+			can_data_t *channel = &hGS_CAN.channels[i];
+			channel->bus_load_permille= (channel->frame_time_acc * 1000) / 100000;
+			if(channel->bus_load_permille> 1000){
+				channel->bus_load_permille= 1000;
+			}
+			channel->frame_time_acc = 0;
 		}
-		bus_total_samples++;
-
-		if(bus_total_samples >= 500){
-			current_bus_load_percent = (uint32_t)(bus_busy_samples * 1000) / bus_total_samples;
-			bus_busy_samples = 0;
-			bus_total_samples = 0;
-		}
+		count = 0;
 	}
 }
 

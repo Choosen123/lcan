@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include "gs_usb.h"
 #include "hal_include.h"
 #include "led.h"
+#include "stm32g0xx_hal_fdcan.h"
 #include "timer.h"
 #include "usbd_conf.h"
 #include "usbd_core.h"
@@ -53,7 +54,7 @@ THE SOFTWARE.
 void HAL_MspInit(void);
 static void SystemClock_Config(void);
 
-static USBD_GS_CAN_HandleTypeDef hGS_CAN;
+USBD_GS_CAN_HandleTypeDef hGS_CAN;
 USBD_HandleTypeDef hUSB = {0};
 
 USBD_CDC_HandleTypeDef hCDC;

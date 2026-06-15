@@ -53,7 +53,6 @@ extern USBD_CDC_HandleTypeDef hCDC;
 static volatile bool is_usb_suspend_cb = false;
 struct gs_device_state device_state;
 
-extern uint16_t current_bus_load_percent;
 extern const struct BoardConfig config;
 
 USBD_HandleTypeDef* get_usb_handle(void);
@@ -481,8 +480,8 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 		}
 
 		case GS_USB_BREQ_GET_BUS_LOAD:
-			src = &current_bus_load_percent;
-			len = sizeof(current_bus_load_percent);
+			src = &channel->bus_load_permille;
+			len = sizeof(channel->bus_load_permille);
 			break;
 
 		case GS_USB_BREQ_GET_STATE:{
@@ -544,7 +543,7 @@ static uint8_t USBD_GS_CAN_Config_Request(USBD_HandleTypeDef *pdev, USBD_SetupRe
 			break;
 
 		case GS_USB_BREQ_GET_BUS_LOAD:
-			USBD_CtlSendData(pdev, (uint8_t *)&current_bus_load_percent, sizeof(current_bus_load_percent));
+			USBD_CtlSendData(pdev, (uint8_t *)&channel->bus_load_permille, sizeof(channel->bus_load_permille));
 			break;
 
 		case GS_USB_BREQ_GET_STATE:

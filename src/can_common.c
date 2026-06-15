@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include "led.h"
 #include "timer.h"
 #include "usbd_gs_can.h"
+#include <stdint.h>
 
 #ifndef CONFIG_CANFD
 const struct gs_device_bt_const_extended CAN_btconst_ext;
@@ -80,6 +81,9 @@ void CAN_SendFrame(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel)
 		return;
 	}
 
+	uint32_t frame_time_us = gs_frame_time_us(frame, channel->nominal_bitrate, channel->data_bitrate);
+	channel->frame_time_acc += frame_time_us;
+
 	// Echo sent frame back to host
 	frame->reserved = 0x0;
 	if (IS_ENABLED(CONFIG_CANFD) && frame->flags & GS_CAN_FLAG_FD)
@@ -119,6 +123,9 @@ void CAN_ReceiveFrame(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel)
 		CAN_RestartReceiveFromGost(get_usb_handle(), hcan);
 		return;
 	}
+
+	uint32_t frame_time_us = gs_frame_time_us(frame, channel->nominal_bitrate, channel->data_bitrate);
+	channel->frame_time_acc += frame_time_us;
 
 	frame->echo_id = 0xFFFFFFFF; // not an echo frame
 	frame->reserved = 0;
@@ -165,3 +172,97 @@ void CAN_HandleError(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel)
 		CAN_RestartReceiveFromGost(get_usb_handle(), hcan);
 	}
 }
+
+uint32_t gs_frame_time_us(struct gs_host_frame *frame, uint32_t nominal, uint32_t data)
+{
+    static const uint8_t dlc2len[16] = {0,1,2,3,4,5,6,7,8,12,16,20,24,32,48,64};
+    if (nominal == 0) return 0;
+
+    uint8_t len = dlc2len[frame->can_dlc & 0x0F];
+    bool ext = frame->can_id & CAN_EFF_FLAG;
+    bool fd  = frame->flags & GS_CAN_FLAG_FD;
+    bool brs = frame->flags & GS_CAN_FLAG_BRS;
+
+    if (!fd)
+    {
+        // --- Classic CAN ---
+        // 基础位：SOF(1)+ID(11/29)+RTR(1)+IDE(1)+r0(1)+DLC(4)+CRC(15)+CRCDel(1)+ACK(1)+ACKDel(1)+EOF(7)
+        // 标准帧约 44 bits, 扩展帧约 64 bits (不计 IFS)
+        uint32_t base_bits = (ext ? 64 : 44);
+        uint32_t payload_bits = len * 8;
+
+        // 位填充：PCAN 等工具常用 1.1 左右的经验值，或者取 (total * 10 / 9)
+        // 这里推荐使用 1.06 (约 17/16)，更接近真实表现
+        uint32_t total_bits = (base_bits + payload_bits);
+        total_bits = (total_bits * 17) / 16;
+
+        total_bits += 3; // 加上 3 bits IFS (Inter-frame Space, 不参与填充)
+
+        return (uint64_t)total_bits * 1000000ULL / nominal;
+    }
+    else
+    {
+        // --- CAN FD ---
+        // 仲裁段 (Nominal Rate): SOF(1)+ID(11/29)+SRR(1)+IDE(1)+FDF(1)+res(1)+BRS(1)+ESI(1)
+        // 标准帧仲裁段约 18 bits, 扩展帧约 36 bits
+        uint32_t arb_bits = (ext ? 36 : 18);
+
+        // 数据段 (Data Rate): DLC(4)+Data(len*8)+CRC+CRC_Stuff+ACK+EOF+IFS
+        // CAN FD 的 CRC 段有固定位填充：CRC17(28bits, len<=16) 或 CRC21(33bits, len>16)
+        uint32_t data_bits = (len * 8);
+        if (len <= 16) {
+            data_bits += 28; // DLC(4) + CRC(17) + FixedStuff(4+2+1) + ACK...
+        } else {
+            data_bits += 33; // DLC(4) + CRC(21) + FixedStuff(5+2+1) + ACK...
+        }
+
+        // 位填充系数：CAN FD 数据段由于已经有了固定填充，额外填充概率降低
+        // 经验值取 1.03 (约 33/32)
+        data_bits = (data_bits * 33) / 32;
+
+        uint32_t time_us = (uint64_t)arb_bits * 1000000ULL / nominal;
+        time_us += (uint64_t)data_bits * 1000000ULL / (brs ? data : nominal);
+
+        return time_us;
+    }
+}
+// uint32_t gs_frame_time_us(struct gs_host_frame *frame,
+//                           uint32_t nominal,
+//                           uint32_t data)
+// {
+//     static const uint8_t dlc2len[16] =
+//     {
+//          0,1,2,3,
+//          4,5,6,7,
+//          8,12,16,20,
+//          24,32,48,64
+//     };
+//     if (nominal == 0) return 0;
+
+//     uint8_t len = dlc2len[frame->can_dlc & 0x0F];
+
+//     bool ext = frame->can_id & CAN_EFF_FLAG;
+//     bool fd  = frame->flags & GS_CAN_FLAG_FD;
+//     bool brs = frame->flags & GS_CAN_FLAG_BRS;
+
+//     if (brs && data == 0) return 0;
+
+//     if (!fd)
+//     {
+//         uint32_t bits = (ext ? 67 : 47) + len * 8;
+//         bits = bits * 12 / 10;
+
+//         return (uint64_t)bits * 1000000ULL / nominal;
+//     }
+
+//     uint32_t arb = (ext ? 67 : 47);
+//     arb = arb * 12 / 10;
+
+//     uint32_t payload = len * 8 + 30;
+//     payload = payload * 12 / 10;
+
+//     return
+//         (uint64_t)arb * 1000000ULL / nominal +
+//         (uint64_t)payload * 1000000ULL /
+//         (brs ? data : nominal);
+// }

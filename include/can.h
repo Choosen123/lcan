@@ -49,6 +49,11 @@ typedef struct {
 	uint8_t phase_seg2;
 	uint8_t sjw;
 	uint8_t nr;
+
+	uint32_t nominal_bitrate;
+	uint32_t data_bitrate;
+	uint64_t frame_time_acc;
+	uint16_t bus_load_permille;
 } can_data_t;
 
 extern const struct gs_device_bt_const CAN_btconst;

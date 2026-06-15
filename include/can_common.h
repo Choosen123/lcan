@@ -35,3 +35,4 @@ int can_check_bittiming(const struct can_bittiming_const *btc, const struct gs_d
 void CAN_SendFrame(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel);
 void CAN_ReceiveFrame(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel);
 void CAN_HandleError(USBD_GS_CAN_HandleTypeDef *hcan, can_data_t *channel);
+uint32_t gs_frame_time_us(struct gs_host_frame *frame, uint32_t nominal, uint32_t data);
